@@ -1,3 +1,6 @@
+import { normalizeString } from './utils.js';
+import { config1, config2 } from './config.js';
+
 function formatDate(dateValue) {
   if (!dateValue) return '';
   if (typeof dateValue === 'string') {
@@ -13,57 +16,6 @@ function formatDate(dateValue) {
     return dateValue.toISOString().split('T')[0];
   }
   return String(dateValue);
-}
-
-// Funzione per normalizzare le stringhe (rimuove accenti, converte in minuscolo)
-function normalizeString(str) {
-  return String(str || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
-
-const MAPPINGS_KEY = 'timesheet_commesse_mappings';
-const EXCLUSIONS_KEY = 'timesheet_exclusions';
-
-export function getCustomMappings() {
-  try {
-    const mappings = localStorage.getItem(MAPPINGS_KEY);
-    return mappings ? JSON.parse(mappings) : {};
-  } catch (e) {
-    console.error('Error reading custom mappings from localStorage', e);
-    return {};
-  }
-}
-
-export function saveCustomMappings(mappings) {
-  try {
-    localStorage.setItem(MAPPINGS_KEY, JSON.stringify(mappings));
-  } catch (e) {
-    console.error('Error saving custom mappings to localStorage', e);
-  }
-}
-
-export function getExclusions() {
-  try {
-    const exclusions = localStorage.getItem(EXCLUSIONS_KEY);
-    const parsed = exclusions ? JSON.parse(exclusions) : { resources: [], commesse: [] };
-    // Ensure structure is correct
-    if (!parsed.resources) parsed.resources = [];
-    if (!parsed.commesse) parsed.commesse = [];
-    return parsed;
-  } catch (e) {
-    console.error('Error reading exclusions from localStorage', e);
-    return { resources: [], commesse: [] };
-  }
-}
-
-export function saveExclusions(exclusions) {
-  try {
-    localStorage.setItem(EXCLUSIONS_KEY, JSON.stringify(exclusions));
-  } catch (e) {
-    console.error('Error saving exclusions to localStorage', e);
-  }
 }
 
 function parseExcelData(data, config) {
@@ -188,57 +140,6 @@ function analyzeDiscrepancies(pivot1, pivot2, allDates) {
 }
 
 export function processAndAnalyze(file1Data, file2Data, customMappings, exclusions) {
-  // Configuration for the first file: "Estrazione TS Bridge"
-  const config1 = {
-    type: 1,
-    columns: { risorsa: 'Risorsa', commessa: 'Descrizione Commessa', data: 'Data', ore: 'Ore' },
-    normalize: {
-      // Format: "Cognome Nome" -> no change needed, just trim
-      risorsa: (name) =>
-        normalizeString(name)
-          .replace(/[^a-z0-9\s]/g, '')
-          .trim(),
-      // Normalizzazione per nome progetto
-      commessa: (proj) => {
-        // Pulisce la stringa da spazi e trattini e la mette in minuscolo
-        let normalized = normalizeString(proj).replace(/[\s-]/g, '').replace(/a511/g, '');
-        // Rimuove i prefissi dopo aver pulito la stringa
-        if (normalized.startsWith('uficms')) {
-          normalized = normalized.substring(6);
-        } else if (normalized.startsWith('cmsufi')) {
-          normalized = normalized.substring(6);
-        }
-        return normalized.trim();
-      },
-    },
-  };
-
-  // Configuration for the second file: "Estrazione TC Kirey"
-  const config2 = {
-    type: 2,
-    columns: { risorsa: 'Name', commessa: 'Project Name', data: 'Calendar Date', ore: 'Processed Hours' },
-    normalize: {
-      // Format: "Cognome, Nome" -> "Cognome Nome"
-      risorsa: (name) =>
-        normalizeString(name)
-          .replace(',', '')
-          .replace(/[^a-z0-9\s]/g, '')
-          .trim(),
-      // Normalizzazione per nome progetto
-      commessa: (proj) => {
-        // Pulisce la stringa da spazi e trattini e la mette in minuscolo
-        let normalized = normalizeString(proj).replace(/[\s-]/g, '').replace(/a511/g, '');
-        // Rimuove i prefissi dopo aver pulito la stringa
-        if (normalized.startsWith('uficms')) {
-          normalized = normalized.substring(6);
-        } else if (normalized.startsWith('cmsufi')) {
-          normalized = normalized.substring(6);
-        }
-        return normalized.trim();
-      },
-    },
-  };
-
   const originalParsed1 = parseExcelData(file1Data, config1);
   const originalParsed2 = parseExcelData(file2Data, config2);
 

@@ -1,5 +1,6 @@
 import { setupFileUpload } from './file-handler.js';
-import { processAndAnalyze, getCustomMappings, saveCustomMappings, getExclusions, saveExclusions } from './data.js';
+import { processAndAnalyze } from './data.js';
+import { getCustomMappings, saveCustomMappings, getExclusions, saveExclusions } from './storage.js';
 import * as ui from './ui.js';
 import * as exporter from './export.js';
 import { getDemoData } from './demo.js';
