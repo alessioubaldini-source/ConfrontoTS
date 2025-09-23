@@ -284,14 +284,34 @@ export function processAndAnalyze(file1Data, file2Data, customMappings, exclusio
   const pivot1 = createPivotTable(parsedData1);
   const pivot2 = createPivotTable(parsedData2);
 
+  // Reformat resource names for pivot2 display ("Cognome, Nome" -> "Cognome Nome")
+  for (const key in pivot2.grouped) {
+    const risorsa = pivot2.grouped[key].risorsa;
+    if (risorsa && risorsa.includes(',')) {
+      const parts = risorsa.split(',').map((p) => p.trim());
+      if (parts.length === 2) {
+        pivot2.grouped[key].risorsa = `${parts[0]} ${parts[1]}`.trim();
+      }
+    }
+  }
   const allDates = [...new Set([...pivot1.sortedDates, ...pivot2.sortedDates])].sort();
   pivot1.sortedDates = allDates;
   pivot2.sortedDates = allDates;
 
   const analysis = analyzeDiscrepancies(pivot1, pivot2, allDates);
 
+  // Crea un set di date che hanno almeno una discrepanza, da passare alla UI
+  // Questo evita di ricalcolarlo ogni volta e risolve il bug del filtro
+  const datesWithDiscrepancies = new Set();
+  for (const date in analysis.dateStats) {
+    if (analysis.dateStats[date].discrepancies > 0) {
+      datesWithDiscrepancies.add(date);
+    }
+  }
+
   return {
     ...analysis,
+    datesWithDiscrepancies,
     pivot1,
     pivot2,
     unmatchedForUI,

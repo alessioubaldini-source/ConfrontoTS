@@ -9,6 +9,10 @@ const state = {
   file1Data: null,
   file2Data: null,
   analysisData: null,
+  // Store the current layout preference
+  resourceChartSort: localStorage.getItem('resource_chart_sort_preference') || 'alphabetical',
+  pivotLayout: localStorage.getItem('pivot_layout_preference') || 'vertical',
+  discrepancyFilter: localStorage.getItem('discrepancy_filter_preference') === 'true',
 };
 
 // --- DOM ELEMENTS ---
@@ -23,10 +27,18 @@ const exclusionBtn = document.getElementById('exclusionBtn');
 const exclusionModal = document.getElementById('exclusionModal');
 const filterResourceGlobal = document.getElementById('filterResourceGlobal');
 const filterCommessaGlobal = document.getElementById('filterCommessaGlobal');
+const filterDiscrepancy = document.getElementById('filterDiscrepancy');
+const resetBtn = document.getElementById('resetBtn');
+const pivotsWrapper = document.getElementById('pivots-wrapper');
+const viewVerticalBtn = document.getElementById('viewVerticalBtn');
+const viewHorizontalBtn = document.getElementById('viewHorizontalBtn');
+const sortResourceAlpha = document.getElementById('sortResourceAlpha');
+const sortResourceValue = document.getElementById('sortResourceValue');
 
 // --- CORE FUNCTIONS ---
 function checkFilesReady() {
-  processBtn.disabled = !(state.file1Data && state.file2Data);
+  processBtn.disabled = !(state.file1Data && state.file2Data); // Abilita processBtn solo se entrambi i file sono caricati
+  resetBtn.disabled = !(state.file1Data || state.file2Data); // Abilita resetBtn se almeno un file è caricato
 }
 
 function handleProcess() {
@@ -39,10 +51,15 @@ function handleProcess() {
       // Pulisce i filtri prima di una nuova elaborazione
       filterResourceGlobal.value = '';
       filterCommessaGlobal.value = '';
+
       const customMappings = getCustomMappings();
       const exclusions = getExclusions();
       state.analysisData = processAndAnalyze(state.file1Data, state.file2Data, customMappings, exclusions);
-      ui.renderAllResults(state.analysisData);
+      // Render dashboard and charts, respecting the saved sort order
+      ui.renderDashboard(state.analysisData, state.resourceChartSort);
+      // Render pivot tables, respecting all active filters (including discrepancy filter)
+      handleFilterChange();
+
       ui.showResults();
       managementSection.style.display = 'block';
     } catch (error) {
@@ -59,6 +76,7 @@ function handleDemoLoad() {
   state.file1Data = file1Data;
   state.file2Data = file2Data;
 
+  demoBtn.disabled = true; // Disabilita il pulsante demo dopo il caricamento dei dati demo
   // Pulisce i filtri quando si caricano i dati demo
   filterResourceGlobal.value = '';
   filterCommessaGlobal.value = '';
@@ -67,13 +85,47 @@ function handleDemoLoad() {
   checkFilesReady();
 }
 
+function handleReset() {
+  state.file1Data = null;
+  state.file2Data = null;
+  state.analysisData = null;
+
+  // Reset UI elements
+  document.getElementById('filename1').textContent = '';
+  document.getElementById('filename1').style.display = 'none';
+  document.getElementById('filename2').textContent = '';
+  document.getElementById('filename2').style.display = 'none';
+  document.getElementById('pivot1Container').innerHTML = '';
+  document.getElementById('pivot2Container').innerHTML = '';
+  document.getElementById('errorMessage').style.display = 'none';
+  const demoInfo = document.querySelector('.demo-info');
+  if (demoInfo) demoInfo.remove();
+
+  filterResourceGlobal.value = '';
+  filterCommessaGlobal.value = '';
+  filterDiscrepancy.checked = false;
+  state.resourceChartSort = 'alphabetical';
+  sortResourceAlpha.classList.add('active');
+  sortResourceValue.classList.remove('active');
+  localStorage.setItem('discrepancy_filter_preference', 'false');
+  localStorage.setItem('resource_chart_sort_preference', 'alphabetical');
+
+  ui.hideResults();
+  managementSection.style.display = 'none';
+  demoBtn.disabled = false; // Riabilita il pulsante demo
+  checkFilesReady(); // Aggiorna lo stato dei pulsanti process e reset
+}
+
 function handleFilterChange() {
   if (!state.analysisData) return;
 
   const filters = {
     risorsa: filterResourceGlobal.value.toLowerCase(),
     commessa: filterCommessaGlobal.value.toLowerCase(),
+    discrepancyOnly: filterDiscrepancy.checked,
   };
+
+  localStorage.setItem('discrepancy_filter_preference', filters.discrepancyOnly);
 
   ui.renderFilteredPivotTables(state.analysisData, filters);
 }
@@ -82,16 +134,43 @@ function handleFilterChange() {
 function setupEventListeners() {
   processBtn.addEventListener('click', handleProcess);
   demoBtn.addEventListener('click', handleDemoLoad);
+  resetBtn.addEventListener('click', handleReset);
 
   // File Uploads
   setupFileUpload(document.getElementById('upload1'), document.getElementById('file1'), document.getElementById('filename1'), (data) => {
     state.file1Data = data;
+    demoBtn.disabled = true;
     checkFilesReady();
   });
 
   setupFileUpload(document.getElementById('upload2'), document.getElementById('file2'), document.getElementById('filename2'), (data) => {
     state.file2Data = data;
+    demoBtn.disabled = true;
     checkFilesReady();
+  });
+
+  sortResourceAlpha.addEventListener('click', () => {
+    if (state.resourceChartSort !== 'alphabetical') {
+      state.resourceChartSort = 'alphabetical';
+      localStorage.setItem('resource_chart_sort_preference', 'alphabetical');
+      sortResourceAlpha.classList.add('active');
+      sortResourceValue.classList.remove('active');
+      if (state.analysisData) {
+        ui.renderResourceChart(state.analysisData.resourceStats, state.resourceChartSort);
+      }
+    }
+  });
+
+  sortResourceValue.addEventListener('click', () => {
+    if (state.resourceChartSort !== 'value') {
+      state.resourceChartSort = 'value';
+      localStorage.setItem('resource_chart_sort_preference', 'value');
+      sortResourceValue.classList.add('active');
+      sortResourceAlpha.classList.remove('active');
+      if (state.analysisData) {
+        ui.renderResourceChart(state.analysisData.resourceStats, state.resourceChartSort);
+      }
+    }
   });
 
   // Teams Modal (con event delegation)
@@ -108,16 +187,15 @@ function setupEventListeners() {
   // Scroll Sync for Pivot Tables
   const pivot1Container = document.getElementById('pivot1Container');
   const pivot2Container = document.getElementById('pivot2Container');
-  let scroll1El,
-    scroll2El,
-    isSyncing1 = false,
-    isSyncing2 = false;
+  let isSyncing1 = false;
+  let isSyncing2 = false;
 
   pivot1Container.addEventListener(
     'scroll',
     (e) => {
-      scroll1El = scroll1El || e.target;
-      scroll2El = scroll2El || pivot2Container.querySelector('.table-container');
+      if (e.target.className !== 'table-container') return;
+      const scroll1El = e.target;
+      const scroll2El = pivot2Container.querySelector('.table-container');
 
       if (!isSyncing1 && scroll2El) {
         isSyncing2 = true;
@@ -131,8 +209,9 @@ function setupEventListeners() {
   pivot2Container.addEventListener(
     'scroll',
     (e) => {
-      scroll2El = scroll2El || e.target;
-      scroll1El = scroll1El || pivot1Container.querySelector('.table-container');
+      if (e.target.className !== 'table-container') return;
+      const scroll2El = e.target;
+      const scroll1El = pivot1Container.querySelector('.table-container');
 
       if (!isSyncing2 && scroll1El) {
         isSyncing1 = true;
@@ -234,8 +313,9 @@ function setupEventListeners() {
   // Filtri per le tabelle pivot
   const filterInputs = [filterResourceGlobal, filterCommessaGlobal];
   filterInputs.forEach((input) => {
-    input.addEventListener('keyup', handleFilterChange); // Usiamo keyup per un'esperienza migliore
+    input.addEventListener('keyup', handleFilterChange);
   });
+  filterDiscrepancy.addEventListener('change', handleFilterChange);
 
   // Export Buttons (con event delegation)
   exportContainer.addEventListener('click', (e) => {
@@ -264,5 +344,50 @@ function setupEventListeners() {
   });
 }
 
+function setupLayoutToggle() {
+  // Apply saved layout on load
+  if (state.pivotLayout === 'horizontal') {
+    pivotsWrapper.classList.add('horizontal-layout');
+    viewHorizontalBtn.classList.add('active');
+    viewVerticalBtn.classList.remove('active');
+  } else {
+    pivotsWrapper.classList.remove('horizontal-layout');
+    viewVerticalBtn.classList.add('active');
+    viewHorizontalBtn.classList.remove('active');
+  }
+
+  viewVerticalBtn.addEventListener('click', () => {
+    pivotsWrapper.classList.remove('horizontal-layout');
+    viewVerticalBtn.classList.add('active');
+    viewHorizontalBtn.classList.remove('active');
+    localStorage.setItem('pivot_layout_preference', 'vertical');
+  });
+
+  viewHorizontalBtn.addEventListener('click', () => {
+    pivotsWrapper.classList.add('horizontal-layout');
+    viewHorizontalBtn.classList.add('active');
+    viewVerticalBtn.classList.remove('active');
+    localStorage.setItem('pivot_layout_preference', 'horizontal');
+  });
+}
+
+function setupInitialState() {
+  // Set checkbox from localStorage
+  filterDiscrepancy.checked = state.discrepancyFilter;
+  // Set initial sort button state based on localStorage
+  if (state.resourceChartSort === 'value') {
+    sortResourceValue.classList.add('active');
+    sortResourceAlpha.classList.remove('active');
+  } else {
+    // 'alphabetical' or default
+    sortResourceAlpha.classList.add('active');
+    sortResourceValue.classList.remove('active');
+  }
+}
+
 // --- INITIALIZATION ---
-document.addEventListener('DOMContentLoaded', setupEventListeners);
+document.addEventListener('DOMContentLoaded', () => {
+  setupEventListeners();
+  setupLayoutToggle();
+  setupInitialState();
+});

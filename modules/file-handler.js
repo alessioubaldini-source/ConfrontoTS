@@ -26,13 +26,21 @@ function readFile(file) {
 }
 
 export function setupFileUpload(uploadBox, fileInput, filenameDiv, onFileLoaded) {
+  const spinnerContainer = uploadBox.querySelector('.upload-spinner-container');
+
   const handleFile = (file) => {
     if (!file) return;
     filenameDiv.textContent = file.name;
     filenameDiv.style.display = 'block';
+
+    if (spinnerContainer) spinnerContainer.style.display = 'flex';
+
     readFile(file)
       .then(onFileLoaded)
-      .catch((err) => showError(err.message));
+      .catch((err) => showError(err.message))
+      .finally(() => {
+        if (spinnerContainer) spinnerContainer.style.display = 'none';
+      });
   };
 
   ['dragover', 'dragleave', 'drop'].forEach((eventName) => {

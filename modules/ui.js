@@ -6,13 +6,7 @@ let dateChartInstance = null;
 
 // --- RENDER FUNCTIONS ---
 
-export function renderAllResults(analysisData) {
-  renderDashboard(analysisData);
-  renderPivotTable(analysisData.pivot1, 'pivot1Container', analysisData.pivot2);
-  renderPivotTable(analysisData.pivot2, 'pivot2Container', analysisData.pivot1);
-}
-
-function renderDashboard(data) {
+export function renderDashboard(data, resourceChartSortOrder = 'alphabetical') {
   document.getElementById('totalHours1').textContent = data.totalHours1.toFixed(1);
   document.getElementById('totalHours2').textContent = data.totalHours2.toFixed(1);
   document.getElementById('totalDifferences').textContent = data.discrepancies.length;
@@ -34,28 +28,34 @@ function renderDashboard(data) {
     }
   }, 100);
 
-  renderResourceChart(data.resourceStats);
+  renderResourceChart(data.resourceStats, resourceChartSortOrder);
   renderDateChart(data.dateStats);
 }
 
-function renderPivotTable(pivotData, containerId, otherPivotData = null) {
+function renderPivotTable(pivotData, containerId, otherPivotData = null, datesWithDiscrepancies = new Set(), discrepancyOnlyColumns = false) {
   const container = document.getElementById(containerId);
   const { grouped, sortedDates } = pivotData;
 
-  const headerHtml = sortedDates
+  // Determine which dates to render based on the filter
+  const datesToRender = discrepancyOnlyColumns ? Array.from(datesWithDiscrepancies).sort() : sortedDates;
+
+  // Crea l'HTML dell'intestazione, usando il set pre-calcolato di date con discrepanze
+  const headerHtml = datesToRender
     .map((date) => {
       const [_, month, day] = date.split('-'); // YYYY-MM-DD
-      return `<th>${day}-${month}</th>`;
+      const thClass = datesWithDiscrepancies.has(date) ? 'class="has-discrepancy"' : '';
+      return `<th ${thClass}>${day}-${month}</th>`;
     })
     .join('');
 
   const bodyHtml = Object.keys(grouped)
-    .sort() // Ordina alfabeticamente per "risorsa|commessa"
+    .sort()
     .map((key) => {
-      // 'key' è la chiave normalizzata "risorsa|commessa"
       const row = grouped[key];
       let total = 0;
-      const dateCellsHtml = sortedDates
+      let hasDiscrepancyInRow = false;
+
+      const dateCellsHtml = datesToRender
         .map((date) => {
           const hours = row.dates[date] || 0;
           total += hours;
@@ -63,20 +63,22 @@ function renderPivotTable(pivotData, containerId, otherPivotData = null) {
           let cellValue = hours.toFixed(2);
 
           if (otherPivotData) {
-            // Usa la chiave normalizzata per trovare la corrispondenza nell'altra tabella
             const otherRow = otherPivotData.grouped[key];
             const otherHours = otherRow ? otherRow.dates[date] || 0 : 0;
             if (Math.abs(hours - otherHours) > 0.01) {
               cellClass = 'difference';
               cellValue = `${hours.toFixed(2)} (${otherHours.toFixed(2)})`;
+              hasDiscrepancyInRow = true;
             }
           }
           return `<td class="${cellClass}">${hours > 0 ? cellValue : ''}</td>`;
         })
         .join('');
 
+      const rowClass = hasDiscrepancyInRow ? 'row-has-discrepancy' : '';
+
       return `
-      <tr>
+      <tr class="${rowClass}">
         <td>${row.risorsa}</td>
         <td>${row.commessa}</td>
         ${dateCellsHtml}
@@ -101,27 +103,36 @@ function renderPivotTable(pivotData, containerId, otherPivotData = null) {
     </div>`;
 }
 
-function renderResourceChart(resourceStats) {
+export function renderResourceChart(resourceStats, sortOrder = 'alphabetical') {
   const ctx = document.getElementById('resourceChart').getContext('2d');
   if (resourceChartInstance) {
     resourceChartInstance.destroy();
   }
-  const resources = Object.keys(resourceStats);
-  if (resources.length === 0) return;
+
+  let sortedResources;
+  if (sortOrder === 'value') {
+    // Sort by number of discrepancies, descending
+    sortedResources = Object.keys(resourceStats).sort((a, b) => resourceStats[b].discrepancies - resourceStats[a].discrepancies);
+  } else {
+    // Default: alphabetical sort
+    sortedResources = Object.keys(resourceStats).sort((a, b) => a.localeCompare(b));
+  }
+
+  if (sortedResources.length === 0) return;
 
   resourceChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: resources,
+      labels: sortedResources,
       datasets: [
         {
           label: 'Discrepanze',
-          data: resources.map((r) => resourceStats[r].discrepancies),
+          data: sortedResources.map((r) => resourceStats[r].discrepancies),
           backgroundColor: 'rgba(239, 68, 68, 0.7)',
         },
         {
           label: 'Totale Celle',
-          data: resources.map((r) => resourceStats[r].total),
+          data: sortedResources.map((r) => resourceStats[r].total),
           backgroundColor: 'rgba(102, 126, 234, 0.7)',
         },
       ],
@@ -167,37 +178,71 @@ function renderDateChart(dateStats) {
   });
 }
 
-function filterPivotData(pivotData, filters) {
-  if (!filters.risorsa && !filters.commessa) {
-    return pivotData; // Nessun filtro, restituisce i dati originali
+function filterPivotData(pivotData, filters, otherPivotData) {
+  const { risorsa, commessa, discrepancyOnly } = filters;
+
+  if (!risorsa && !commessa && !discrepancyOnly) {
+    return pivotData;
   }
 
   const filteredGrouped = {};
   for (const key in pivotData.grouped) {
     const row = pivotData.grouped[key];
-    const risorsaMatch = !filters.risorsa || row.risorsa.toLowerCase().includes(filters.risorsa);
-    const commessaMatch = !filters.commessa || row.commessa.toLowerCase().includes(filters.commessa);
+    const risorsaMatch = !risorsa || row.risorsa.toLowerCase().includes(risorsa);
+    const commessaMatch = !commessa || row.commessa.toLowerCase().includes(commessa);
 
     if (risorsaMatch && commessaMatch) {
-      filteredGrouped[key] = row;
+      if (discrepancyOnly) {
+        const otherRow = otherPivotData.grouped[key];
+        const hasDiscrepancy = pivotData.sortedDates.some((date) => {
+          const hours1 = row.dates[date] || 0;
+          const hours2 = otherRow?.dates[date] || 0;
+          return Math.abs(hours1 - hours2) > 0.01;
+        });
+
+        if (hasDiscrepancy) {
+          filteredGrouped[key] = row;
+        }
+      } else {
+        filteredGrouped[key] = row;
+      }
     }
   }
 
-  return {
-    ...pivotData,
-    grouped: filteredGrouped,
-  };
+  return { ...pivotData, grouped: filteredGrouped };
 }
 
 export function renderFilteredPivotTables(analysisData, filters) {
-  const filteredPivot1 = filterPivotData(analysisData.pivot1, filters);
-  const filteredPivot2 = filterPivotData(analysisData.pivot2, filters);
+  const filteredPivot1 = filterPivotData(analysisData.pivot1, filters, analysisData.pivot2);
+  const filteredPivot2 = filterPivotData(analysisData.pivot2, filters, analysisData.pivot1);
 
-  // I dati di confronto devono essere quelli originali dell'altra tabella
-  renderPivotTable(filteredPivot1, 'pivot1Container', analysisData.pivot2);
-  renderPivotTable(filteredPivot2, 'pivot2Container', analysisData.pivot1);
+  // Calculate datesWithDiscrepancies based on the *filtered* data
+  const filteredDatesWithDiscrepancies = new Set();
+  const allFilteredKeys = new Set([...Object.keys(filteredPivot1.grouped), ...Object.keys(filteredPivot2.grouped)]);
+
+  // Iterate over all possible dates from the original analysis,
+  // but check for discrepancies only within the currently filtered rows.
+  analysisData.pivot1.sortedDates.forEach((date) => {
+    // Use the full set of dates from original analysis
+    let dateHasDiscrepancyInFilteredData = false;
+    for (const key of allFilteredKeys) {
+      const row1 = filteredPivot1.grouped[key];
+      const row2 = filteredPivot2.grouped[key];
+      const hours1 = row1?.dates[date] || 0;
+      const hours2 = row2?.dates[date] || 0;
+      if (Math.abs(hours1 - hours2) > 0.01) {
+        dateHasDiscrepancyInFilteredData = true;
+        break;
+      }
+    }
+    if (dateHasDiscrepancyInFilteredData) {
+      filteredDatesWithDiscrepancies.add(date);
+    }
+  });
+
+  renderPivotTable(filteredPivot1, 'pivot1Container', filteredPivot2, filteredDatesWithDiscrepancies, filters.discrepancyOnly);
+  renderPivotTable(filteredPivot2, 'pivot2Container', filteredPivot1, filteredDatesWithDiscrepancies, filters.discrepancyOnly);
 }
-
 // --- UI STATE FUNCTIONS ---
 
 export function showLoading() {
@@ -261,6 +306,7 @@ export function showTeamsModal(data) {
   }, {});
 
   const allMessagesHtml = Object.entries(discrepanciesByResource)
+    .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([resource, discrepancies]) => {
       let message = `Ciao ${resource},\n\n`;
       message += `ci sono le seguenti discrepanze nel tuo timesheet:\n\n`;

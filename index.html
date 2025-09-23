@@ -25,6 +25,9 @@
             <p>Trascina qui il primo file o clicca per selezionare</p>
             <input type="file" class="file-input" id="file1" accept=".xlsx,.xls" />
             <div class="file-name" id="filename1"></div>
+            <div class="upload-spinner-container" style="display: none">
+              <div class="spinner"></div>
+            </div>
           </div>
 
           <div class="upload-box" id="upload2">
@@ -33,11 +36,15 @@
             <p>Trascina qui il secondo file o clicca per selezionare</p>
             <input type="file" class="file-input" id="file2" accept=".xlsx,.xls" />
             <div class="file-name" id="filename2"></div>
+            <div class="upload-spinner-container" style="display: none">
+              <div class="spinner"></div>
+            </div>
           </div>
         </div>
 
         <div class="controls">
           <button class="btn-process" id="processBtn" disabled>🔄 Elabora Timesheet</button>
+          <button class="btn-process" id="resetBtn" disabled style="margin-left: 20px; background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%)">🗑️ Reset</button>
           <button class="btn-process" id="demoBtn" style="margin-left: 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%)">🎯 Carica Dati Demo</button>
         </div>
 
@@ -79,7 +86,13 @@
 
           <div class="charts-section">
             <div class="chart-container">
-              <div class="chart-title">🔍 Discrepanze per Risorsa</div>
+              <div class="chart-title">
+                🔍 Discrepanze per Risorsa
+                <div class="chart-sort-controls">
+                  <button id="sortResourceAlpha" class="sort-btn active" title="Ordina A-Z">A-Z</button>
+                  <button id="sortResourceValue" class="sort-btn" title="Ordina per discrepanze">1-9</button>
+                </div>
+              </div>
               <canvas id="resourceChart"></canvas>
             </div>
             <div class="chart-container">
@@ -109,14 +122,35 @@
           <div class="pivot-filters global-filters">
             <input type="text" id="filterResourceGlobal" placeholder="Filtra per Risorsa..." class="filter-input" />
             <input type="text" id="filterCommessaGlobal" placeholder="Filtra per Commessa..." class="filter-input" />
+            <div class="filter-checkbox-wrapper">
+              <input type="checkbox" id="filterDiscrepancy" class="filter-checkbox" />
+              <label for="filterDiscrepancy">Mostra solo discrepanze</label>
+            </div>
+            <div class="view-toggle-container">
+              <label>Layout:</label>
+              <button id="viewVerticalBtn" class="view-toggle-btn active" title="Vista Verticale">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                  <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v2A1.5 1.5 0 0 1 13.5 6h-11A1.5 1.5 0 0 1 1 4.5v-2zm0 7A1.5 1.5 0 0 1 2.5 8h11a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 11.5v-2z" />
+                </svg>
+              </button>
+              <button id="viewHorizontalBtn" class="view-toggle-btn" title="Vista Orizzontale">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                  <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm8.5-1v12H14a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H8.5zM7.5 2H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5.5V2z" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <h2 class="pivot-title">📋 Pivot TS Bridge</h2>
-          <div id="pivot1Container"></div>
-        </div>
+          <div id="pivots-wrapper">
+            <div class="pivot-container">
+              <h2 class="pivot-title">📋 Pivot TS Bridge</h2>
+              <div id="pivot1Container"></div>
+            </div>
 
-        <div class="pivot-container">
-          <h2 class="pivot-title">📋 Pivot TC Kirey</h2>
-          <div id="pivot2Container"></div>
+            <div class="pivot-container">
+              <h2 class="pivot-title">📋 Pivot TC Kirey</h2>
+              <div id="pivot2Container"></div>
+            </div>
+          </div>
         </div>
       </div>
 
