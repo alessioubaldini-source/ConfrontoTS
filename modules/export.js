@@ -102,7 +102,7 @@ export function exportToPDF(data) {
   }
 
   // --- PAGINE SUCCESSIVE: TABELLE PIVOT ---
-  const generatePivotTableForPdf = (doc, title, pivotData) => {
+  const generatePivotTableForPdf = (doc, title, pivotData, otherPivotData) => {
     doc.addPage();
     doc.setFontSize(18);
     doc.text(title, 14, 20);
@@ -118,11 +118,34 @@ export function exportToPDF(data) {
         'Totale',
       ],
     ];
-    const body = Object.values(pivotData.grouped).map((row) => {
+
+    const sortedKeys = Object.keys(pivotData.grouped).sort();
+
+    // Pre-calculate which rows have discrepancies to apply row-level styling
+    const rowsWithDiscrepancies = new Set(
+      sortedKeys.filter((key) => {
+        const rowData = pivotData.grouped[key];
+        const otherRowData = otherPivotData.grouped[key];
+        return pivotData.sortedDates.some((date) => {
+          const hours1 = rowData?.dates[date] || 0;
+          const hours2 = otherRowData?.dates[date] || 0;
+          return Math.abs(hours1 - hours2) > 0.01;
+        });
+      })
+    );
+
+    const body = sortedKeys.map((key) => {
+      const row = pivotData.grouped[key];
+      const otherRow = otherPivotData.grouped[key];
       let total = 0;
       const dateValues = pivotData.sortedDates.map((date) => {
         const hours = row.dates[date] || 0;
         total += hours;
+        const otherHours = otherRow?.dates[date] || 0;
+
+        if (Math.abs(hours - otherHours) > 0.01) {
+          return `${hours.toFixed(2)} (${otherHours.toFixed(2)})`;
+        }
         return hours > 0 ? hours.toFixed(2) : '';
       });
       return [row.risorsa, row.commessa, ...dateValues, total.toFixed(2)];
@@ -135,12 +158,41 @@ export function exportToPDF(data) {
       theme: 'grid',
       styles: { fontSize: 7, cellPadding: 1 },
       headStyles: { fillColor: [102, 126, 234], fontSize: 8 },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
+      didParseCell: function (hookData) {
+        if (hookData.section !== 'body') {
+          return;
+        }
+
+        const key = sortedKeys[hookData.row.index];
+        if (!key) return;
+
+        // Apply yellow background for rows with any discrepancy
+        if (rowsWithDiscrepancies.has(key)) {
+          hookData.cell.styles.fillColor = [255, 251, 235]; // light yellow
+        }
+
+        // Apply red background for specific cells with a discrepancy
+        const dateColumnIndexStart = 2;
+        const dateColumnIndexEnd = dateColumnIndexStart + pivotData.sortedDates.length - 1;
+
+        if (hookData.column.index >= dateColumnIndexStart && hookData.column.index <= dateColumnIndexEnd) {
+          const date = pivotData.sortedDates[hookData.column.index - dateColumnIndexStart];
+          const rowData = pivotData.grouped[key];
+          const otherRowData = otherPivotData.grouped[key];
+          const hours1 = rowData?.dates[date] || 0;
+          const hours2 = otherRowData?.dates[date] || 0;
+
+          if (Math.abs(hours1 - hours2) > 0.01) {
+            hookData.cell.styles.fillColor = [254, 226, 226]; // light red
+            hookData.cell.styles.textColor = [153, 27, 27]; // dark red
+          }
+        }
+      },
     });
   };
 
-  generatePivotTableForPdf(doc, 'Pivot TS Bridge', data.pivot1);
-  generatePivotTableForPdf(doc, 'Pivot TC Kirey', data.pivot2);
+  generatePivotTableForPdf(doc, 'Pivot TS Bridge', data.pivot1, data.pivot2);
+  generatePivotTableForPdf(doc, 'Pivot TC Kirey', data.pivot2, data.pivot1);
 
   // Salva il PDF
   doc.save(`report_timesheet_${new Date().toISOString().split('T')[0]}.pdf`);

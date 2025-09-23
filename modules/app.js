@@ -2,6 +2,7 @@ import { setupFileUpload } from './file-handler.js';
 import { processAndAnalyze } from './data.js';
 import { getCustomMappings, saveCustomMappings, getExclusions, saveExclusions } from './storage.js';
 import * as ui from './ui.js';
+import { renderResourceChart, destroyCharts } from './charts.js';
 import * as exporter from './export.js';
 import { getDemoData } from './demo.js';
 
@@ -99,6 +100,7 @@ function handleReset() {
   document.getElementById('pivot1Container').innerHTML = '';
   document.getElementById('pivot2Container').innerHTML = '';
   document.getElementById('errorMessage').style.display = 'none';
+  destroyCharts();
   const demoInfo = document.querySelector('.demo-info');
   if (demoInfo) demoInfo.remove();
 
@@ -157,7 +159,7 @@ function setupEventListeners() {
       sortResourceAlpha.classList.add('active');
       sortResourceValue.classList.remove('active');
       if (state.analysisData) {
-        ui.renderResourceChart(state.analysisData.resourceStats, state.resourceChartSort);
+        renderResourceChart(state.analysisData.resourceStats, state.resourceChartSort);
       }
     }
   });
@@ -169,7 +171,7 @@ function setupEventListeners() {
       sortResourceValue.classList.add('active');
       sortResourceAlpha.classList.remove('active');
       if (state.analysisData) {
-        ui.renderResourceChart(state.analysisData.resourceStats, state.resourceChartSort);
+        renderResourceChart(state.analysisData.resourceStats, state.resourceChartSort);
       }
     }
   });

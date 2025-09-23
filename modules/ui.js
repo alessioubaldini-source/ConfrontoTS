@@ -1,8 +1,4 @@
-// Le librerie Chart e jsPDF sono caricate globalmente da CDN
-const { Chart } = window;
-
-let resourceChartInstance = null;
-let dateChartInstance = null;
+import { renderResourceChart, renderDateChart } from './charts.js';
 
 // --- RENDER FUNCTIONS ---
 
@@ -20,11 +16,14 @@ export function renderDashboard(data, resourceChartSortOrder = 'alphabetical') {
     accuracyFill.style.width = `${data.accuracy}%`;
     accuracyText.textContent = `${data.accuracy.toFixed(1)}%`;
     if (data.accuracy < 70) {
-      accuracyFill.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+      // Error
+      accuracyFill.style.background = 'var(--error-gradient)';
     } else if (data.accuracy < 90) {
-      accuracyFill.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+      // Warning
+      accuracyFill.style.background = 'var(--warning-gradient)';
     } else {
-      accuracyFill.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+      // Success
+      accuracyFill.style.background = 'var(--success-gradient)';
     }
   }, 100);
 
@@ -101,81 +100,6 @@ function renderPivotTable(pivotData, containerId, otherPivotData = null, datesWi
         <tbody>${bodyHtml}</tbody>
       </table>
     </div>`;
-}
-
-export function renderResourceChart(resourceStats, sortOrder = 'alphabetical') {
-  const ctx = document.getElementById('resourceChart').getContext('2d');
-  if (resourceChartInstance) {
-    resourceChartInstance.destroy();
-  }
-
-  let sortedResources;
-  if (sortOrder === 'value') {
-    // Sort by number of discrepancies, descending
-    sortedResources = Object.keys(resourceStats).sort((a, b) => resourceStats[b].discrepancies - resourceStats[a].discrepancies);
-  } else {
-    // Default: alphabetical sort
-    sortedResources = Object.keys(resourceStats).sort((a, b) => a.localeCompare(b));
-  }
-
-  if (sortedResources.length === 0) return;
-
-  resourceChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: sortedResources,
-      datasets: [
-        {
-          label: 'Discrepanze',
-          data: sortedResources.map((r) => resourceStats[r].discrepancies),
-          backgroundColor: 'rgba(239, 68, 68, 0.7)',
-        },
-        {
-          label: 'Totale Celle',
-          data: sortedResources.map((r) => resourceStats[r].total),
-          backgroundColor: 'rgba(102, 126, 234, 0.7)',
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-      plugins: { legend: { position: 'bottom' } },
-    },
-  });
-}
-
-function renderDateChart(dateStats) {
-  const ctx = document.getElementById('dateChart').getContext('2d');
-  if (dateChartInstance) {
-    dateChartInstance.destroy();
-  }
-  const dates = Object.keys(dateStats).sort();
-  if (dates.length === 0) return;
-
-  dateChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: dates,
-      datasets: [
-        {
-          label: 'Discrepanze per Data',
-          data: dates.map((d) => dateStats[d].discrepancies),
-          borderColor: 'rgba(239, 68, 68, 1)',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          tension: 0.4,
-          fill: true,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-      plugins: { legend: { display: false } },
-    },
-  });
 }
 
 function filterPivotData(pivotData, filters, otherPivotData) {
@@ -315,7 +239,7 @@ export function showTeamsModal(data) {
         message += `  - Ore TS Bridge: ${d.hours1.toFixed(1)}h\n`;
         message += `  - Ore TC Kirey: ${d.hours2.toFixed(1)}h\n\n`;
       });
-      message += `Grazie per la collaborazione.`;
+      message += `Grazie.`;
 
       return `
         <div class="resource-message">
