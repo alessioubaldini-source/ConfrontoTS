@@ -4,9 +4,20 @@ import { config1, config2 } from './config.js';
 function formatDate(dateValue) {
   if (!dateValue) return '';
   if (typeof dateValue === 'string') {
-    const date = new Date(dateValue);
+    const trimmed = dateValue.trim();
+
+    // Gestione specifica per formato italiano DD/MM/YYYY (es. 08/01/2026)
+    const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      const day = match[1].padStart(2, '0');
+      const month = match[2].padStart(2, '0');
+      const year = match[3];
+      return `${year}-${month}-${day}`;
+    }
+
+    const date = new Date(trimmed);
     if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
-    return dateValue;
+    return trimmed;
   }
   if (typeof dateValue === 'number') {
     const date = new Date((dateValue - 25569) * 86400 * 1000);
@@ -27,7 +38,7 @@ function parseExcelData(data, config) {
   const headers = data[0].map((h) =>
     String(h || '')
       .trim()
-      .toLowerCase()
+      .toLowerCase(),
   );
 
   // Trova dinamicamente gli indici delle colonne in base al nome dell'intestazione (case-insensitive)
