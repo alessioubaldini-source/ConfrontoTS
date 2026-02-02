@@ -28,7 +28,7 @@ export const config1 = {
 // Configuration for the second file: "Estrazione TC Kirey"
 export const config2 = {
   type: 2,
-  columns: { risorsa: 'Name', commessa: 'Project Name', data: 'Calendar Date', ore: 'Processed Hours' },
+  columns: { risorsa: 'Name', commessa: 'Project Name', data: 'Calendar Date', ore: 'Reported Hours' },
   normalize: {
     // Format: "Cognome, Nome" -> "Cognome Nome"
     risorsa: (name) =>
