@@ -14,7 +14,7 @@ function readFile(file) {
       try {
         const workbook = XLSX.read(e.target.result, { type: 'binary' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
         resolve(data);
       } catch (error) {
         reject(new Error(`Errore nella lettura del file: ${error.message}`));

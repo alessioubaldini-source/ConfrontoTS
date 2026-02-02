@@ -1,18 +1,41 @@
 import { normalizeString } from './utils.js';
 import { config1, config2 } from './config.js';
 
-function formatDate(dateValue) {
+function formatDate(dateValue, configType) {
   if (!dateValue) return '';
   if (typeof dateValue === 'string') {
     const trimmed = dateValue.trim();
 
-    // Gestione specifica per formato italiano DD/MM/YYYY (es. 08/01/2026)
-    const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    // Rimuove eventuale parte oraria per il matching regex (es. "1/2/26 0:00" -> "1/2/26")
+    const datePart = trimmed.split(' ')[0];
+
+    // Gestione specifica per formati data con slash
+    const match = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
     if (match) {
-      const day = match[1].padStart(2, '0');
-      const month = match[2].padStart(2, '0');
-      const year = match[3];
+      let day, month, year;
+
+      if (configType === 2) {
+        // TC Kirey: MM/DD/YY (es. 1/2/26 -> 2 Gennaio)
+        month = match[1].padStart(2, '0');
+        day = match[2].padStart(2, '0');
+        year = match[3];
+      } else {
+        // TS Bridge: DD/MM/YY (es. 2/1/26 -> 2 Gennaio)
+        day = match[1].padStart(2, '0');
+        month = match[2].padStart(2, '0');
+        year = match[3];
+      }
+
+      if (year.length === 2) {
+        year = `20${year}`; // Assume anni 20xx
+      }
       return `${year}-${month}-${day}`;
+    }
+
+    // Gestione Excel serial number passato come stringa
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      const date = new Date((parseFloat(trimmed) - 25569) * 86400 * 1000);
+      if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
     }
 
     const date = new Date(trimmed);
@@ -41,6 +64,9 @@ function parseExcelData(data, config) {
       .toLowerCase(),
   );
 
+  // DEBUG: Log headers found
+  console.log(`[DEBUG] Parsing ${config.type === 1 ? 'TS Bridge' : 'TC Kirey'}. Headers:`, headers);
+
   // Trova dinamicamente gli indici delle colonne in base al nome dell'intestazione (case-insensitive)
   const findIndex = (headerName) => headers.findIndex((h) => h === headerName.toLowerCase());
 
@@ -48,6 +74,9 @@ function parseExcelData(data, config) {
   const commessaIdx = findIndex(config.columns.commessa);
   const dataIdx = findIndex(config.columns.data);
   const oreIdx = findIndex(config.columns.ore);
+
+  // DEBUG: Log indices
+  console.log(`[DEBUG] Indices: Risorsa=${risorsaIdx}, Commessa=${commessaIdx}, Data=${dataIdx}, Ore=${oreIdx}`);
 
   // Controlla se tutte le colonne necessarie sono state trovate e restituisce un errore specifico in caso contrario
   const missingCols = [];
@@ -63,7 +92,7 @@ function parseExcelData(data, config) {
 
   return data
     .slice(1)
-    .map((row) => {
+    .map((row, idx) => {
       if (!row || row.length === 0) return null;
 
       const risorsaRaw = String(row[risorsaIdx] || '').trim();
@@ -72,11 +101,26 @@ function parseExcelData(data, config) {
       const risorsaNorm = config.normalize.risorsa(risorsaRaw);
       const commessaNorm = config.normalize.commessa(commessaRaw);
 
+      const dateVal = formatDate(row[dataIdx], config.type);
+
+      // Gestione ore con virgola e parsing sicuro
+      let oreVal = row[oreIdx];
+      if (typeof oreVal === 'string') {
+        oreVal = parseFloat(oreVal.replace(',', '.')) || 0;
+      } else {
+        oreVal = parseFloat(oreVal) || 0;
+      }
+
+      // DEBUG: Log first 5 rows
+      if (idx < 5) {
+        console.log(`[DEBUG] Row ${idx}: DateRaw="${row[dataIdx]}"->"${dateVal}", OreRaw="${row[oreIdx]}"->${oreVal}`);
+      }
+
       return {
         risorsa: { raw: risorsaRaw, norm: risorsaNorm },
         commessa: { raw: commessaRaw, norm: commessaNorm },
-        data: formatDate(row[dataIdx]),
-        ore: parseFloat(row[oreIdx]) || 0,
+        data: dateVal,
+        ore: oreVal,
       };
     })
     .filter((item) => item && item.risorsa.raw && item.commessa.raw && item.data && item.ore > 0);

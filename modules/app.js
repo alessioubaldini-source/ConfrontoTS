@@ -54,9 +54,15 @@ function handleProcess() {
       filterResourceGlobal.value = '';
       filterCommessaGlobal.value = '';
 
+      console.log('--- DATI GREZZI (RAW) ---');
+      console.log('File 1 (TS Bridge):', state.file1Data);
+      console.log('File 2 (TC Kirey):', state.file2Data);
+
       const customMappings = getCustomMappings();
       const exclusions = getExclusions();
       state.analysisData = processAndAnalyze(state.file1Data, state.file2Data, customMappings, exclusions);
+      console.log('--- DATI ANALIZZATI (RESULT) ---');
+      console.log('Analysis Data:', state.analysisData);
       // Render dashboard and charts, respecting the saved sort order
       ui.renderDashboard(state.analysisData, state.resourceChartSort);
       // Render pivot tables, respecting all active filters (including discrepancy filter)
@@ -206,7 +212,7 @@ function setupEventListeners() {
       }
       isSyncing1 = false;
     },
-    true
+    true,
   );
 
   pivot2Container.addEventListener(
@@ -222,7 +228,7 @@ function setupEventListeners() {
       }
       isSyncing2 = false;
     },
-    true
+    true,
   );
 
   mappingBtn.addEventListener('click', () => {

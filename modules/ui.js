@@ -8,6 +8,13 @@ export function renderDashboard(data, resourceChartSortOrder = 'alphabetical') {
   document.getElementById('totalDifferences').textContent = data.discrepancies.length;
   document.getElementById('accuracyPercentage').textContent = `${data.accuracy.toFixed(1)}%`;
 
+  // Aggiorna il pulsante esclusioni con il conteggio delle esclusioni attive
+  const exclusionCount = (data.exclusions?.resources?.length || 0) + (data.exclusions?.commesse?.length || 0);
+  const exclusionBtn = document.getElementById('exclusionBtn');
+  if (exclusionBtn) {
+    exclusionBtn.textContent = exclusionCount > 0 ? `Gestisci Esclusioni (${exclusionCount})` : 'Gestisci Esclusioni';
+  }
+
   const accuracyFill = document.getElementById('accuracyFill');
   const accuracyText = document.getElementById('accuracyText');
   accuracyFill.style.width = '0%'; // Reset for animation
@@ -289,7 +296,7 @@ export function showMappingModal(analysisData) {
         <span class="mapping-text">${from} ➡️ ${to}</span>
         <button class="delete-mapping-btn" title="Elimina Mapping">X</button>
       </div>
-    `
+    `,
       )
       .join('');
   } else {
@@ -326,7 +333,7 @@ export function showExclusionModal(analysisData) {
           <span>${item}</span>
           <button class="delete-exclusion-btn" title="Rimuovi esclusione">X</button>
         </div>
-      `
+      `,
         )
         .join('');
     } else {

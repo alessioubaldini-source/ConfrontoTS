@@ -131,7 +131,7 @@ export function exportToPDF(data) {
           const hours2 = otherRowData?.dates[date] || 0;
           return Math.abs(hours1 - hours2) > 0.01;
         });
-      })
+      }),
     );
 
     const body = sortedKeys.map((key) => {
@@ -210,17 +210,17 @@ STATISTICHE GENERALI:
 • Accuratezza: ${data.accuracy.toFixed(1)}%
 • Discrepanze Trovate: ${data.discrepancies.length}
 
-RISORSE CON PIÙ DISCREPANZE:
+RISORSE CON DISCREPANZE:
 ${Object.entries(data.resourceStats)
-  .sort((a, b) => b[1].discrepancies - a[1].discrepancies)
-  .slice(0, 5)
+  .filter(([_, stats]) => stats.discrepancies > 0)
+  .sort((a, b) => a[0].localeCompare(b[0]))
   .map(([resource, stats]) => `• ${resource}: ${stats.discrepancies} discrepanze su ${stats.total} celle`)
   .join('\n')}
 
-DATE CON PIÙ DISCREPANZE:
+DATE CON DISCREPANZE:
 ${Object.entries(data.dateStats)
-  .sort((a, b) => b[1].discrepancies - a[1].discrepancies)
-  .slice(0, 5)
+  .filter(([_, stats]) => stats.discrepancies > 0)
+  .sort((a, b) => a[0].localeCompare(b[0]))
   .map(([date, stats]) => `• ${date}: ${stats.discrepancies} discrepanze`)
   .join('\n')}
 
