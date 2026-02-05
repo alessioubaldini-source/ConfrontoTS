@@ -3,7 +3,7 @@ import { normalizeString } from './utils.js';
 // Configuration for the first file: "Estrazione TS Bridge"
 export const config1 = {
   type: 1,
-  columns: { risorsa: 'Risorsa', commessa: 'Descrizione Commessa', data: 'Data', ore: 'Ore' },
+  columns: { risorsa: ['Risorsa'], commessa: ['Descrizione Commessa'], data: ['Data'], ore: ['Ore'] },
   normalize: {
     // Format: "Cognome Nome" -> no change needed, just trim
     risorsa: (name) =>
@@ -28,7 +28,12 @@ export const config1 = {
 // Configuration for the second file: "Estrazione TC Kirey"
 export const config2 = {
   type: 2,
-  columns: { risorsa: 'Name', commessa: 'Project Name', data: 'Calendar Date', ore: 'Reported Hours' },
+  columns: {
+    risorsa: ['Name'],
+    commessa: ['Project Name', 'Nome Progetto'],
+    data: ['Calendar Date'],
+    ore: ['Reported Hours', 'Ore Registrate'],
+  },
   normalize: {
     // Format: "Cognome, Nome" -> "Cognome Nome"
     risorsa: (name) =>
