@@ -68,7 +68,7 @@ function parseExcelData(data, config) {
   console.log(`[DEBUG] Parsing ${config.type === 1 ? 'TS Bridge' : 'TC Kirey'}. Headers:`, headers);
 
   // Trova dinamicamente gli indici delle colonne in base al nome dell'intestazione (case-insensitive)
-  const findIndex = (headerName) => headers.findIndex((h) => h === headerName.toLowerCase());
+  const findIndex = (possibleHeaders) => headers.findIndex((h) => possibleHeaders.some((ph) => String(ph).toLowerCase() === h));
 
   const risorsaIdx = findIndex(config.columns.risorsa);
   const commessaIdx = findIndex(config.columns.commessa);
