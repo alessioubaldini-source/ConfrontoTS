@@ -45,6 +45,8 @@ function renderPivotTable(pivotData, containerId, otherPivotData = null, datesWi
   // Determine which dates to render based on the filter
   const datesToRender = discrepancyOnlyColumns ? Array.from(datesWithDiscrepancies).sort() : sortedDates;
 
+  console.log(`[DEBUG] renderPivotTable (${containerId}) - Date da renderizzare:`, datesToRender);
+
   // Crea l'HTML dell'intestazione, usando il set pre-calcolato di date con discrepanze
   const headerHtml = datesToRender
     .map((date) => {
@@ -170,6 +172,8 @@ export function renderFilteredPivotTables(analysisData, filters) {
       filteredDatesWithDiscrepancies.add(date);
     }
   });
+
+  console.log(`[DEBUG] renderFilteredPivotTables - Date con discrepanze (filtrate):`, Array.from(filteredDatesWithDiscrepancies));
 
   renderPivotTable(filteredPivot1, 'pivot1Container', filteredPivot2, filteredDatesWithDiscrepancies, filters.discrepancyOnly);
   renderPivotTable(filteredPivot2, 'pivot2Container', filteredPivot1, filteredDatesWithDiscrepancies, filters.discrepancyOnly);

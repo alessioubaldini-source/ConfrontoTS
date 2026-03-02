@@ -12,9 +12,11 @@ function readFile(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
+        // Usa raw: true per .xlsx (date come numeri seriali) e raw: false per .xls (date come stringhe)
+        const isXlsx = file.name.toLowerCase().endsWith('.xlsx');
         const workbook = XLSX.read(e.target.result, { type: 'binary' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: isXlsx });
         resolve(data);
       } catch (error) {
         reject(new Error(`Errore nella lettura del file: ${error.message}`));

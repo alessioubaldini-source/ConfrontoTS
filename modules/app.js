@@ -103,6 +103,11 @@ function handleReset() {
   document.getElementById('filename1').style.display = 'none';
   document.getElementById('filename2').textContent = '';
   document.getElementById('filename2').style.display = 'none';
+
+  // Reset degli input file per permettere il ricaricamento dello stesso file
+  document.getElementById('file1').value = '';
+  document.getElementById('file2').value = '';
+
   document.getElementById('pivot1Container').innerHTML = '';
   document.getElementById('pivot2Container').innerHTML = '';
   document.getElementById('errorMessage').style.display = 'none';

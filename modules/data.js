@@ -2,54 +2,48 @@ import { normalizeString } from './utils.js';
 import { config1, config2 } from './config.js';
 
 function formatDate(dateValue, configType) {
-  if (!dateValue) return '';
-  if (typeof dateValue === 'string') {
+  console.log(`[DEBUG] formatDate - Input: "${dateValue}", Tipo: ${typeof dateValue}, Config: ${configType}`);
+  let result = '';
+  if (!dateValue) {
+    // Lascia il risultato come stringa vuota
+  } else if (typeof dateValue === 'string') {
     const trimmed = dateValue.trim();
-
-    // Rimuove eventuale parte oraria per il matching regex (es. "1/2/26 0:00" -> "1/2/26")
     const datePart = trimmed.split(' ')[0];
-
-    // Gestione specifica per formati data con slash
     const match = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
     if (match) {
       let day, month, year;
-
       if (configType === 2) {
-        // TC Kirey: MM/DD/YY (es. 1/2/26 -> 2 Gennaio)
         month = match[1].padStart(2, '0');
         day = match[2].padStart(2, '0');
         year = match[3];
       } else {
-        // TS Bridge: DD/MM/YY (es. 2/1/26 -> 2 Gennaio)
         day = match[1].padStart(2, '0');
         month = match[2].padStart(2, '0');
         year = match[3];
       }
-
-      if (year.length === 2) {
-        year = `20${year}`; // Assume anni 20xx
-      }
-      return `${year}-${month}-${day}`;
-    }
-
-    // Gestione Excel serial number passato come stringa
-    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      if (year.length === 2) year = `20${year}`;
+      result = `${year}-${month}-${day}`;
+    } else if (/^\d+(\.\d+)?$/.test(trimmed)) {
       const date = new Date((parseFloat(trimmed) - 25569) * 86400 * 1000);
-      if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+      if (!isNaN(date.getTime())) result = date.toISOString().split('T')[0];
+    } else {
+      const date = new Date(trimmed);
+      if (!isNaN(date.getTime())) {
+        result = date.toISOString().split('T')[0];
+      } else {
+        result = trimmed;
+      }
     }
-
-    const date = new Date(trimmed);
-    if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
-    return trimmed;
-  }
-  if (typeof dateValue === 'number') {
+  } else if (typeof dateValue === 'number') {
     const date = new Date((dateValue - 25569) * 86400 * 1000);
-    return date.toISOString().split('T')[0];
+    result = date.toISOString().split('T')[0];
+  } else if (dateValue instanceof Date) {
+    result = dateValue.toISOString().split('T')[0];
+  } else {
+    result = String(dateValue);
   }
-  if (dateValue instanceof Date) {
-    return dateValue.toISOString().split('T')[0];
-  }
-  return String(dateValue);
+  console.log(`[DEBUG] formatDate - Output: "${result}"`);
+  return result;
 }
 
 function parseExcelData(data, config) {
